@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>odd-password-algorithm — test page</title>
+<style>
+  :root {
+    --bg: #f6f6f4;
+    --panel: #fff;
+    --ink: #1b1b1a;
+    --muted: #6b6b66;
+    --line: #dcdcd6;
+    --accent: #2f5d50;
+    --bad: #a2382b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a; --panel: #1f2124; --ink: #ececea;
+      --muted: #9a9a95; --line: #33363a; --accent: #7fbfa9; --bad: #e08578;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1rem; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 1.35rem; margin: 0 0 .25rem; }
+  p.sub { margin: 0 0 1.75rem; color: var(--muted); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 1.25rem; margin-bottom: 1.25rem;
+  }
+  h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em;
+       color: var(--muted); margin: 0 0 1rem; font-weight: 600; }
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .9rem; }
+  label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: .3rem; }
+  input, select, button {
+    font: inherit; width: 100%; padding: .5rem .6rem; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  button {
+    cursor: pointer; background: var(--accent); color: #fff; border-color: transparent;
+    font-weight: 600;
+  }
+  button.ghost { background: transparent; color: var(--ink); border-color: var(--line); font-weight: 500; }
+  button:hover { filter: brightness(1.08); }
+  .row { display: flex; gap: .6rem; margin-top: 1rem; flex-wrap: wrap; }
+  .row button { width: auto; flex: 1 1 auto; min-width: 130px; }
+  .out {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 1.4rem; word-break: break-all; margin-top: 1rem; padding: 1rem;
+    border: 1px dashed var(--line); border-radius: 8px; text-align: center;
+    background: var(--bg); min-height: 3.6rem; display: flex;
+    align-items: center; justify-content: center;
+  }
+  ul.batch { list-style: none; margin: 1rem 0 0; padding: 0;
+             font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  ul.batch li { padding: .3rem 0; border-bottom: 1px solid var(--line); font-size: .95rem;
+                display: flex; justify-content: space-between; gap: 1rem; }
+  ul.batch li:last-child { border-bottom: 0; }
+  ul.batch .ok { color: var(--accent); }
+  ul.batch .no { color: var(--bad); }
+  .meta { color: var(--muted); font-size: .82rem; margin-top: .8rem; }
+  .verdict { margin-top: .9rem; font-size: .95rem; }
+  .verdict.ok { color: var(--accent); }
+  .verdict.no { color: var(--bad); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+</style>
+</head>
+<body>
+<main>
+  <h1>odd-password-algorithm</h1>
+  <p class="sub">Local test harness — not for deployment.</p>
+
+  <section>
+    <h2>Options</h2>
+    <div class="controls">
+      <div>
+        <label for="blocks">Blocks (min 3)</label>
+        <input id="blocks" type="number" min="3" max="16" value="4">
+      </div>
+      <div>
+        <label for="blockLength">Block length</label>
+        <input id="blockLength" type="number" min="1" max="12" value="4">
+      </div>
+      <div>
+        <label for="brackets">Brackets</label>
+        <select id="brackets">
+          <option value="random">random</option>
+          <option value="[]">[ ]</option>
+          <option value="{}">{ }</option>
+          <option value="&lt;&gt;">&lt; &gt;</option>
+          <option value="()">( )</option>
+        </select>
+      </div>
+      <div>
+        <label for="oddPos">Odd block position</label>
+        <select id="oddPos">
+          <option value="random">random</option>
+          <option value="first">first</option>
+          <option value="last">last</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <button id="gen">Generate</button>
+      <button id="genMany" class="ghost">Generate 10</button>
+      <button id="copy" class="ghost">Copy</button>
+    </div>
+    <div class="out" id="out">—</div>
+    <div class="meta" id="meta"></div>
+    <ul class="batch" id="batch"></ul>
+  </section>
+
+  <section>
+    <h2>Validator</h2>
+    <label for="check">Paste a password to check it against the spec</label>
+    <input id="check" type="text" placeholder="[AAA1-BBB2-333C-4d-5F5F]" spellcheck="false">
+    <div class="verdict" id="verdict"></div>
+  </section>
+
+  <section>
+    <h2>Stress test</h2>
+    <p class="meta" style="margin-top:0">
+      Generates 5,000 passwords with the options above and validates every one.
+    </p>
+    <button id="stress" class="ghost" style="width:auto;min-width:160px">Run 5,000</button>
+    <div class="verdict" id="stressOut"></div>
+  </section>
+</main>
+
+<script src="./oddPassword.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  function options() {
+    return {
+      blocks: parseInt($('blocks').value, 10),
+      blockLength: parseInt($('blockLength').value, 10),
+      brackets: $('brackets').value,
+      oddBlockPosition: $('oddPos').value
+    };
+  }
+
+  function show(text, isError) {
+    $('out').textContent = text;
+    $('out').style.color = isError ? 'var(--bad)' : '';
+  }
+
+  function generateOne() {
+    $('batch').innerHTML = '';
+    try {
+      var opts = options();
+      var pw = oddPassword.generate(opts);
+      show(pw, false);
+      var v = oddPassword.validate(pw, opts);
+      $('meta').textContent =
+        'length ' + pw.length + ' · odd block at index ' + v.oddBlockIndex +
+        ' · ~' + oddPassword.entropyBits(opts).toFixed(1) + ' bits of entropy';
+    } catch (err) {
+      show(err.message, true);
+      $('meta').textContent = '';
+    }
+  }
+
+  function generateMany() {
+    try {
+      var opts = options();
+      var list = oddPassword.generateMany(10, opts);
+      $('batch').innerHTML = list.map(function (pw) {
+        var v = oddPassword.validate(pw, opts);
+        return '<li><span>' + pw.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>' +
+               '<span class="' + (v.valid ? 'ok">valid' : 'no">' + v.reason) + '</span></li>';
+      }).join('');
+      show(list[0], false);
+      $('meta').textContent = '~' + oddPassword.entropyBits(opts).toFixed(1) + ' bits of entropy each';
+    } catch (err) {
+      $('batch').innerHTML = '';
+      show(err.message, true);
+      $('meta').textContent = '';
+    }
+  }
+
+  $('gen').addEventListener('click', generateOne);
+  $('genMany').addEventListener('click', generateMany);
+
+  $('copy').addEventListener('click', function () {
+    var text = $('out').textContent;
+    if (!text || text === '—') return;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function () {
+        $('copy').textContent = 'Copied';
+        setTimeout(function () { $('copy').textContent = 'Copy'; }, 1200);
+      });
+    }
+  });
+
+  $('check').addEventListener('input', function () {
+    var value = $('check').value.trim();
+    var el = $('verdict');
+    if (!value) { el.textContent = ''; el.className = 'verdict'; return; }
+    var v = oddPassword.validate(value);
+    if (v.valid) {
+      el.className = 'verdict ok';
+      el.textContent = 'Valid — ' + v.brackets + ' brackets, ' + v.blocks +
+        ' blocks of ' + v.blockLength + ', odd block at index ' + v.oddBlockIndex + '.';
+    } else {
+      el.className = 'verdict no';
+      el.textContent = 'Invalid — ' + v.reason;
+    }
+  });
+
+  $('stress').addEventListener('click', function () {
+    var el = $('stressOut');
+    try {
+      var opts = options();
+      var failures = [];
+      for (var i = 0; i < 5000; i++) {
+        var pw = oddPassword.generate(opts);
+        var v = oddPassword.validate(pw, opts);
+        if (!v.valid) failures.push(pw + ' — ' + v.reason);
+      }
+      el.className = failures.length ? 'verdict no' : 'verdict ok';
+      el.textContent = failures.length
+        ? failures.length + ' failed, e.g. ' + failures[0]
+        : 'All 5,000 passed validation.';
+    } catch (err) {
+      el.className = 'verdict no';
+      el.textContent = err.message;
+    }
+  });
+
+  generateOne();
+}());
+</script>
+</body>
+</html>
