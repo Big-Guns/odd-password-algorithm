@@ -103,13 +103,27 @@ describe('entropyBits', function () {
   var log2 = Math.log2;
 
   it('accounts for every random choice at the defaults', function () {
+    var n = 16;                     // 4 blocks x 4 characters
     var expected = log2(4)          // bracket set
       + log2(5)                     // odd-block slot
       + 1                           // odd-block order
       + log2(26) + log2(10)         // odd-block letter and digit
-      + 16 * log2(36);              // 4 blocks x 4 characters
+      + n * log2(36)                // the uppercase run
+      + log2(1 - Math.pow(26 / 36, n) - Math.pow(10 / 36, n)); // minus excluded runs
     assert.ok(Math.abs(oddPassword.entropyBits() - expected) < 1e-9);
     assert.ok(Math.abs(oddPassword.entropyBits() - 96.06) < 0.01, oddPassword.entropyBits());
+  });
+
+  it('discounts the uppercase runs the letter-and-digit rule excludes', function () {
+    var n = 16;
+    var unconstrained = log2(4) + log2(5) + 1 + log2(26) + log2(10) + n * log2(36);
+    assert.ok(oddPassword.entropyBits() < unconstrained, 'constraint costs entropy');
+    assert.ok(unconstrained - oddPassword.entropyBits() < 0.02, 'but only a fraction of a bit');
+  });
+
+  it('stays finite for block counts that would overflow 36^n', function () {
+    var bits = oddPassword.entropyBits({ blocks: 32, blockLength: 16 });
+    assert.ok(Number.isFinite(bits) && bits > 2000, String(bits));
   });
 
   it('drops the bracket term when the pair is pinned', function () {
@@ -130,9 +144,11 @@ describe('entropyBits', function () {
     );
   });
 
-  it('adds log2(36) per extra character', function () {
+  it('adds about log2(36) per extra character', function () {
+    // Not exact: a longer run also shrinks the share excluded by the
+    // letter-and-digit rule, which claws back a few thousandths of a bit.
     var delta = oddPassword.entropyBits({ blockLength: 5 }) - oddPassword.entropyBits();
-    assert.ok(Math.abs(delta - 4 * log2(36)) < 1e-9, String(delta));
+    assert.ok(Math.abs(delta - 4 * log2(36)) < 0.05, String(delta));
   });
 
   it('rejects the same invalid options as generate', function () {

@@ -103,22 +103,74 @@ describe('odd block placement and ordering', function () {
 });
 
 describe('uppercase block contents', function () {
+  var samples = oddPassword.generateMany(3000);
+
   it('permits an all-letter block', function () {
-    // Every pick lands on index 0 of its alphabet: 'A' / 'a' / '0'.
-    var pw = oddPassword.generate({ rng: h.scriptedRng([0]) });
-    assert.ok(/AAAA/.test(pw), pw);
+    var found = samples.filter(function (pw) {
+      return h.upperBlocksOf(pw).some(function (b) { return /^[A-Z]+$/.test(b); });
+    });
+    assert.ok(found.length > 0, 'never produced an all-letter block in 3000 draws');
   });
 
   it('permits an all-digit block', function () {
-    // Index 26 of "A-Z0-9" is '0'.
-    var pw = oddPassword.generate({ rng: h.scriptedRng([26]) });
-    assert.ok(/0000/.test(pw), pw);
+    var found = samples.filter(function (pw) {
+      return h.upperBlocksOf(pw).some(function (b) { return /^[0-9]+$/.test(b); });
+    });
+    assert.ok(found.length > 0, 'never produced an all-digit block in 3000 draws');
   });
 
   it('is fully determined by the rng', function () {
     assert.strictEqual(
-      oddPassword.generate({ rng: h.scriptedRng([0]) }),
-      '[a0-AAAA-AAAA-AAAA-AAAA]'
+      oddPassword.generate({ rng: h.cyclingRng([0, 26]) }),
+      '[A0A0-a6-A0A0-A0A0-A0A0]'
+    );
+  });
+});
+
+describe('letter-and-digit guarantee', function () {
+  // The odd block always supplies a lowercase letter and a digit, but the
+  // uppercase run can come out all letters — (26/36)^16 at the defaults, and
+  // far likelier for short blocks. Consumers requiring a capital and a digit
+  // would break on those, so the generator must never emit one.
+  function assertBothClasses(pw, label) {
+    var joined = h.upperBlocksOf(pw).join('');
+    assert.match(joined, /[A-Z]/, label + ' has no capital in its blocks: ' + pw);
+    assert.match(joined, /[0-9]/, label + ' has no digit in its blocks: ' + pw);
+  }
+
+  it('holds at the defaults', function () {
+    oddPassword.generateMany(3000).forEach(function (pw) {
+      assertBothClasses(pw, 'default');
+    });
+  });
+
+  it('holds for the configurations where a miss is likeliest', function () {
+    // 3 blocks of 1 character misses roughly 40% of the time unguarded.
+    [{ blocks: 3, blockLength: 1 },
+     { blocks: 3, blockLength: 2 },
+     { blocks: 4, blockLength: 1 },
+     { blocks: 3, blockLength: 4 }].forEach(function (opts) {
+      oddPassword.generateMany(2000, opts).forEach(function (pw) {
+        assertBothClasses(pw, JSON.stringify(opts));
+      });
+    });
+  });
+
+  it('still allows a single block to be all letters or all digits', function () {
+    var pw = oddPassword.generate({ rng: h.cyclingRng([0, 26]) });
+    assert.ok(/A0A0/.test(pw), 'blocks stay unconstrained individually: ' + pw);
+  });
+
+  it('is enforced by the validator too', function () {
+    assert.strictEqual(oddPassword.validate('[AAAA-BBBB-CCCC-4d-DDDD]').valid, false);
+    assert.strictEqual(oddPassword.validate('[1111-2222-3333-4d-4444]').valid, false);
+    assert.ok(oddPassword.validate('[AAAA-BBBB-CCCC-4d-DDD1]').valid);
+  });
+
+  it('gives up loudly on an rng with no spread', function () {
+    assert.throws(
+      function () { oddPassword.generate({ rng: function () { return 0; } }); },
+      /gave up after 1000 attempts/
     );
   });
 });

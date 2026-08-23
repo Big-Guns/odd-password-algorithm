@@ -2,8 +2,9 @@
  * Randomness quality: the distribution must be flat, the source must be a
  * CSPRNG, and the rejection sampling must actually reject.
  *
- * The chi-square checks compare against p = 0.001 critical values, so a correct
- * generator trips them roughly once in a thousand runs.
+ * The chi-square checks compare against p = 1e-6 critical values (helpers.js
+ * explains why that threshold and not the textbook 0.001), so a correct
+ * generator effectively never trips them.
  */
 'use strict';
 
@@ -50,6 +51,16 @@ var corpus = (function () {
   };
 }());
 
+/**
+ * Filler bytes that alternate between a letter index and a digit index, so a
+ * stubbed CSPRNG satisfies the letter-and-digit rule on its first draw.
+ */
+function spread(length) {
+  var bytes = [];
+  for (var i = 0; i < length; i++) bytes.push(i % 2 ? 26 : 0);
+  return bytes;
+}
+
 function countsFor(alphabet, table) {
   return alphabet.split('').map(function (c) { return table[c] || 0; });
 }
@@ -67,7 +78,7 @@ describe('character distribution', function () {
     var counts = countsFor(h.UPPER + h.DIGITS, corpus.upper);
     var total = counts.reduce(function (a, b) { return a + b; }, 0);
     var chi2 = h.chiSquare(counts, total / 36);
-    assert.ok(chi2 < h.CHI2_001[35], 'chi-square ' + chi2.toFixed(2) + ' >= ' + h.CHI2_001[35]);
+    assert.ok(chi2 < h.CHI2_CRITICAL[35], 'chi-square ' + chi2.toFixed(2) + ' >= ' + h.CHI2_CRITICAL[35]);
   });
 
   it('reaches every lowercase letter, uniformly', function () {
@@ -76,7 +87,7 @@ describe('character distribution', function () {
       assert.ok(count > 0, 'never produced "' + h.LOWER.charAt(i) + '"');
     });
     var chi2 = h.chiSquare(counts, SAMPLES / 26);
-    assert.ok(chi2 < h.CHI2_001[25], 'chi-square ' + chi2.toFixed(2));
+    assert.ok(chi2 < h.CHI2_CRITICAL[25], 'chi-square ' + chi2.toFixed(2));
   });
 
   it('reaches every digit in the odd block, uniformly', function () {
@@ -85,7 +96,7 @@ describe('character distribution', function () {
       assert.ok(count > 0, 'never produced "' + h.DIGITS.charAt(i) + '"');
     });
     var chi2 = h.chiSquare(counts, SAMPLES / 10);
-    assert.ok(chi2 < h.CHI2_001[9], 'chi-square ' + chi2.toFixed(2));
+    assert.ok(chi2 < h.CHI2_CRITICAL[9], 'chi-square ' + chi2.toFixed(2));
   });
 
   it('never emits an uppercase letter where a lowercase one belongs', function () {
@@ -102,7 +113,7 @@ describe('structural distribution', function () {
       assert.ok(count > 0, 'never used bracket ' + ['[', '{', '<', '('][i]);
     });
     var chi2 = h.chiSquare(counts, SAMPLES / 4);
-    assert.ok(chi2 < h.CHI2_001[3], 'chi-square ' + chi2.toFixed(2));
+    assert.ok(chi2 < h.CHI2_CRITICAL[3], 'chi-square ' + chi2.toFixed(2));
   });
 
   it('places the odd block uniformly across all five slots', function () {
@@ -111,13 +122,13 @@ describe('structural distribution', function () {
       assert.ok(count > 0, 'never used slot ' + i);
     });
     var chi2 = h.chiSquare(counts, SAMPLES / 5);
-    assert.ok(chi2 < h.CHI2_001[4], 'chi-square ' + chi2.toFixed(2));
+    assert.ok(chi2 < h.CHI2_CRITICAL[4], 'chi-square ' + chi2.toFixed(2));
   });
 
   it('balances letter-first and digit-first odd blocks', function () {
     var counts = [corpus.orders.letterFirst, corpus.orders.digitFirst];
     var chi2 = h.chiSquare(counts, SAMPLES / 2);
-    assert.ok(chi2 < h.CHI2_001[1], 'chi-square ' + chi2.toFixed(2));
+    assert.ok(chi2 < h.CHI2_CRITICAL[1], 'chi-square ' + chi2.toFixed(2));
   });
 });
 
@@ -127,7 +138,7 @@ describe('entropy source', function () {
   });
 
   it('draws from crypto.getRandomValues', function () {
-    var stub = h.scriptedCrypto(new Array(200).fill(0));
+    var stub = h.scriptedCrypto(spread(200));
     var sandbox = h.loadInContext({ crypto: stub });
     sandbox.oddPassword.generate();
     assert.ok(stub.served.length > 0, 'the CSPRNG was consulted');
@@ -145,42 +156,49 @@ describe('entropy source', function () {
 
   it('still works without a CSPRNG when an rng is injected', function () {
     var sandbox = h.loadInContext({});
-    var pw = sandbox.oddPassword.generate({ rng: function () { return 0; } });
-    assert.strictEqual(pw, '[a0-AAAA-AAAA-AAAA-AAAA]');
+    var pw = sandbox.oddPassword.generate({ rng: h.cyclingRng([0, 26]) });
+    assert.strictEqual(pw, '[A0A0-a6-A0A0-A0A0-A0A0]');
   });
 });
 
 describe('rejection sampling', function () {
   // For a 36-symbol alphabet the usable range is 0..251; bytes 252-255 must be
   // discarded rather than folded in, or A-D would come up more often than E-Z.
-  it('discards bytes above the largest whole multiple of the alphabet size', function () {
-    var bytes = [
-      0,   // bracket set
-      0,   // odd-block slot
-      253, // out of range for 36 -> must be discarded
-      0    // -> 'A'
-    ].concat(new Array(200).fill(0));
+  //
+  // Each script starts with the bracket byte and the odd-block slot byte, then
+  // the bytes under test, then `spread()` filler — a flat run of one byte would
+  // produce an all-letter block, which the letter-and-digit rule redraws.
 
-    var stub = h.scriptedCrypto(bytes);
+  // The first uppercase character, with the odd block forced into slot 0.
+  function firstUpperChar(pw) {
+    return h.parse(pw).blocks[1].charAt(0);
+  }
+
+  function generateFrom(bytes) {
+    var stub = h.scriptedCrypto(bytes.concat(spread(400)));
     var sandbox = h.loadInContext({ crypto: stub });
-    var pw = sandbox.oddPassword.generate();
+    return { password: sandbox.oddPassword.generate(), stub: stub };
+  }
 
-    assert.ok(stub.served.indexOf(253) !== -1, 'the out-of-range byte was drawn');
-    assert.match(pw, /^\[a0-AAAA/, 'and discarded rather than folded in: ' + pw);
+  it('discards bytes above the largest whole multiple of the alphabet size', function () {
+    var run = generateFrom([0, 0, 253, 0]);
+    assert.ok(run.stub.served.indexOf(253) !== -1, 'the out-of-range byte was drawn');
+    assert.strictEqual(
+      firstUpperChar(run.password), 'A',
+      '253 was discarded rather than folded in: ' + run.password
+    );
   });
 
   it('accepts the largest in-range byte', function () {
-    var stub = h.scriptedCrypto([0, 0, 251].concat(new Array(200).fill(0)));
-    var sandbox = h.loadInContext({ crypto: stub });
-    var pw = sandbox.oddPassword.generate();
     // 251 % 36 === 35 -> the last symbol of "A-Z0-9", which is '9'.
-    assert.match(pw, /^\[a0-9AAA/, pw);
+    assert.strictEqual(firstUpperChar(generateFrom([0, 0, 251]).password), '9');
   });
 
   it('keeps drawing until it gets an in-range byte', function () {
-    var stub = h.scriptedCrypto([0, 0, 255, 254, 253, 252, 1].concat(new Array(200).fill(0)));
-    var sandbox = h.loadInContext({ crypto: stub });
-    var pw = sandbox.oddPassword.generate();
-    assert.match(pw, /^\[a0-B/, 'four rejections then index 1 -> "B": ' + pw);
+    var run = generateFrom([0, 0, 255, 254, 253, 252, 1]);
+    assert.strictEqual(
+      firstUpperChar(run.password), 'B',
+      'four rejections then index 1 -> "B": ' + run.password
+    );
   });
 });

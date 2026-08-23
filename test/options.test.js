@@ -210,8 +210,9 @@ describe('separator', function () {
 describe('rng injection', function () {
   it('uses the supplied function instead of the CSPRNG', function () {
     var calls = [];
+    var i = 0;
     oddPassword.generate({
-      rng: function (max) { calls.push(max); return 0; }
+      rng: function (max) { calls.push(max); return (i++) % max; }
     });
     assert.ok(calls.length > 0, 'rng was called');
     assert.ok(calls.indexOf(4) !== -1, 'asked for a bracket set (max 4)');
@@ -222,17 +223,28 @@ describe('rng injection', function () {
   });
 
   it('never asks for a value outside [0, max)', function () {
+    var i = 0;
     oddPassword.generate({
       rng: function (max) {
         assert.ok(Number.isInteger(max) && max > 0 && max <= 256, 'max: ' + max);
-        return max - 1;
+        return (i++) % max;
       }
     });
   });
 
+  it('accepts the top of each requested range', function () {
+    // Returning max - 1 everywhere yields an all-digit run, which the
+    // letter-and-digit rule rejects — so alternate the extremes instead.
+    var top = true;
+    var pw = oddPassword.generate({
+      rng: function (max) { top = !top; return top ? max - 1 : 0; }
+    });
+    assert.ok(oddPassword.validate(pw).valid, pw);
+  });
+
   it('is deterministic for a deterministic rng', function () {
-    var a = oddPassword.generate({ rng: h.scriptedRng([1, 2, 3, 4, 5]) });
-    var b = oddPassword.generate({ rng: h.scriptedRng([1, 2, 3, 4, 5]) });
+    var a = oddPassword.generate({ rng: h.cyclingRng([1, 2, 3, 4, 5, 26]) });
+    var b = oddPassword.generate({ rng: h.cyclingRng([1, 2, 3, 4, 5, 26]) });
     assert.strictEqual(a, b);
   });
 

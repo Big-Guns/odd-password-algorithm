@@ -7,7 +7,9 @@ Generates passwords with a deliberately odd, fixed shape:
 ```
 
 - **N blocks** of random uppercase letters and digits — default 4, minimum 3.
-  Any mix is allowed, including all letters (`DDDD`) or all digits (`5555`).
+  Any single block may be all letters (`DDDD`) or all digits (`5555`), but the
+  blocks together always contain **at least one letter and at least one digit**
+  (see [The letter-and-digit rule](#the-letter-and-digit-rule)).
 - **Exactly one "odd block"** of one lowercase letter and one digit, in either
   order (`4d` or `d4`). Its position among the other blocks is random by default.
 - Blocks are joined with hyphens and wrapped in **one matched bracket pair** —
@@ -73,6 +75,32 @@ Defaults come out at **~96 bits**.
 
 Also exported: `defaults`, `MIN_BLOCKS`, `BRACKETS`.
 
+## The letter-and-digit rule
+
+The odd block always supplies a lowercase letter and a digit, but the uppercase
+blocks are drawn independently and can legitimately come out with no digit at
+all — `(26/36)^16` at the defaults, about **1 in 180**, and roughly **38%** for
+3 blocks of 1 character. Anything downstream that requires a capital and a digit
+would break on those.
+
+So the generator redraws the whole uppercase run until it contains both classes,
+and `validate()` enforces the same rule:
+
+```js
+oddPassword.validate('[AAAA-BBBB-CCCC-4d-DDDD]');
+// { valid: false,
+//   reason: 'Uppercase blocks need at least one letter and one digit between them.' }
+```
+
+Redrawing rather than patching a character into place keeps the result uniform
+over the passwords that satisfy the rule. The redraw costs a fraction of a bit
+of entropy, which `entropyBits()` accounts for. Individual blocks stay
+unconstrained — only the run as a whole must carry both classes.
+
+An `options.rng` with no usable spread (one that always returns the same value,
+say) can never satisfy the rule; after 1000 attempts `generate()` throws rather
+than looping forever.
+
 ## Randomness
 
 Characters come from `crypto.getRandomValues` with rejection sampling, so the
@@ -88,14 +116,15 @@ npm test          # Node suites — no dependencies, uses the built-in test runn
 npm run test:browser
 ```
 
-125 tests across five suites:
+128 tests across five suites (136 with the browser suite):
 
 | Suite | Covers |
 | --- | --- |
 | `test/spec.test.js` | The required shape: matched brackets, block counts and charsets, exactly one odd block, both odd-block orders, collision-freedom. |
 | `test/options.test.js` | Every option and every value that must be rejected, including error types and messages. |
 | `test/validate.test.js` | `validate()` acceptance, each rejection reason, option-tightened checks, and single-character mutation of a known-good password. |
-| `test/random.test.js` | Chi-square uniformity (p = 0.001) over characters, bracket sets, odd-block slot and order; no `Math.random`; the no-CSPRNG failure path; and that rejection sampling really discards out-of-range bytes. |
+| `test/random.test.js` | Chi-square uniformity (p = 1e-6) over characters, bracket sets, odd-block slot and order; no `Math.random`; the no-CSPRNG failure path; and that rejection sampling really discards out-of-range bytes. |
+| letter-and-digit rule | Held across 3,000 default draws and 2,000 each at the configurations where a miss is likeliest, plus validator enforcement and the no-spread-rng throw (in `test/spec.test.js`). |
 | `test/module.test.js` | Public API surface, all three UMD load paths (CommonJS, AMD, `<script>` global), packaging, and the entropy arithmetic. |
 
 `test/browser.test.js` additionally drives real Chromium against `test.html`

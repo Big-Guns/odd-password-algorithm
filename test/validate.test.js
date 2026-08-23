@@ -57,7 +57,7 @@ describe('accepting valid passwords', function () {
   });
 
   it('reports the bracket set, block count and block length', function () {
-    var result = oddPassword.validate('{AAAAA-BBBBB-CCCCC-DDDDD-EEEEE-4d}');
+    var result = oddPassword.validate('{AAAA5-BBBBB-CCCCC-DDDDD-EEEEE-4d}');
     assert.strictEqual(result.brackets, '{}');
     assert.strictEqual(result.blocks, 5);
     assert.strictEqual(result.blockLength, 5);
@@ -132,6 +132,24 @@ describe('rejecting malformed passwords', function () {
 
   it('rejects nested or doubled brackets', function () {
     assert.strictEqual(oddPassword.validate('[[AAA1-BBB2-333C-4d-5F5F]]').valid, false);
+  });
+
+  it('rejects uppercase blocks with no digit between them', function () {
+    assert.match(
+      reasonFor('[AAAA-BBBB-CCCC-4d-DDDD]'),
+      /at least one letter and one digit/
+    );
+  });
+
+  it('rejects uppercase blocks with no capital between them', function () {
+    assert.match(
+      reasonFor('[1111-2222-3333-4d-4444]'),
+      /at least one letter and one digit/
+    );
+  });
+
+  it('accepts a single all-letter block when another block carries a digit', function () {
+    assert.ok(oddPassword.validate('[AAAA-BBBB-CCCC-4d-DDD1]').valid);
   });
 });
 
