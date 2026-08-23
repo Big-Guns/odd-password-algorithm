@@ -2,8 +2,9 @@
  * Randomness quality: the distribution must be flat, the source must be a
  * CSPRNG, and the rejection sampling must actually reject.
  *
- * The chi-square checks compare against p = 0.001 critical values, so a correct
- * generator trips them roughly once in a thousand runs.
+ * The chi-square checks compare against p = 1e-6 critical values (helpers.js
+ * explains why that threshold and not the textbook 0.001), so a correct
+ * generator effectively never trips them.
  */
 'use strict';
 
@@ -77,7 +78,7 @@ describe('character distribution', function () {
     var counts = countsFor(h.UPPER + h.DIGITS, corpus.upper);
     var total = counts.reduce(function (a, b) { return a + b; }, 0);
     var chi2 = h.chiSquare(counts, total / 36);
-    assert.ok(chi2 < h.CHI2_001[35], 'chi-square ' + chi2.toFixed(2) + ' >= ' + h.CHI2_001[35]);
+    assert.ok(chi2 < h.CHI2_CRITICAL[35], 'chi-square ' + chi2.toFixed(2) + ' >= ' + h.CHI2_CRITICAL[35]);
   });
 
   it('reaches every lowercase letter, uniformly', function () {
@@ -86,7 +87,7 @@ describe('character distribution', function () {
       assert.ok(count > 0, 'never produced "' + h.LOWER.charAt(i) + '"');
     });
     var chi2 = h.chiSquare(counts, SAMPLES / 26);
-    assert.ok(chi2 < h.CHI2_001[25], 'chi-square ' + chi2.toFixed(2));
+    assert.ok(chi2 < h.CHI2_CRITICAL[25], 'chi-square ' + chi2.toFixed(2));
   });
 
   it('reaches every digit in the odd block, uniformly', function () {
@@ -95,7 +96,7 @@ describe('character distribution', function () {
       assert.ok(count > 0, 'never produced "' + h.DIGITS.charAt(i) + '"');
     });
     var chi2 = h.chiSquare(counts, SAMPLES / 10);
-    assert.ok(chi2 < h.CHI2_001[9], 'chi-square ' + chi2.toFixed(2));
+    assert.ok(chi2 < h.CHI2_CRITICAL[9], 'chi-square ' + chi2.toFixed(2));
   });
 
   it('never emits an uppercase letter where a lowercase one belongs', function () {
@@ -112,7 +113,7 @@ describe('structural distribution', function () {
       assert.ok(count > 0, 'never used bracket ' + ['[', '{', '<', '('][i]);
     });
     var chi2 = h.chiSquare(counts, SAMPLES / 4);
-    assert.ok(chi2 < h.CHI2_001[3], 'chi-square ' + chi2.toFixed(2));
+    assert.ok(chi2 < h.CHI2_CRITICAL[3], 'chi-square ' + chi2.toFixed(2));
   });
 
   it('places the odd block uniformly across all five slots', function () {
@@ -121,13 +122,13 @@ describe('structural distribution', function () {
       assert.ok(count > 0, 'never used slot ' + i);
     });
     var chi2 = h.chiSquare(counts, SAMPLES / 5);
-    assert.ok(chi2 < h.CHI2_001[4], 'chi-square ' + chi2.toFixed(2));
+    assert.ok(chi2 < h.CHI2_CRITICAL[4], 'chi-square ' + chi2.toFixed(2));
   });
 
   it('balances letter-first and digit-first odd blocks', function () {
     var counts = [corpus.orders.letterFirst, corpus.orders.digitFirst];
     var chi2 = h.chiSquare(counts, SAMPLES / 2);
-    assert.ok(chi2 < h.CHI2_001[1], 'chi-square ' + chi2.toFixed(2));
+    assert.ok(chi2 < h.CHI2_CRITICAL[1], 'chi-square ' + chi2.toFixed(2));
   });
 });
 

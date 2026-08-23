@@ -123,7 +123,7 @@ npm run test:browser
 | `test/spec.test.js` | The required shape: matched brackets, block counts and charsets, exactly one odd block, both odd-block orders, collision-freedom. |
 | `test/options.test.js` | Every option and every value that must be rejected, including error types and messages. |
 | `test/validate.test.js` | `validate()` acceptance, each rejection reason, option-tightened checks, and single-character mutation of a known-good password. |
-| `test/random.test.js` | Chi-square uniformity (p = 0.001) over characters, bracket sets, odd-block slot and order; no `Math.random`; the no-CSPRNG failure path; and that rejection sampling really discards out-of-range bytes. |
+| `test/random.test.js` | Chi-square uniformity (p = 1e-6) over characters, bracket sets, odd-block slot and order; no `Math.random`; the no-CSPRNG failure path; and that rejection sampling really discards out-of-range bytes. |
 | letter-and-digit rule | Held across 3,000 default draws and 2,000 each at the configurations where a miss is likeliest, plus validator enforcement and the no-spread-rng throw (in `test/spec.test.js`). |
 | `test/module.test.js` | Public API surface, all three UMD load paths (CommonJS, AMD, `<script>` global), packaging, and the entropy arithmetic. |
 

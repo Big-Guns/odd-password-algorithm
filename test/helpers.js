@@ -40,7 +40,7 @@ function scriptedRng(values) {
 
 /**
  * Chi-square goodness-of-fit against a uniform expectation.
- * Returns the statistic; compare it to CHI2_001[df].
+ * Returns the statistic; compare it to CHI2_CRITICAL[df].
  */
 function chiSquare(counts, expected) {
   return counts.reduce(function (sum, observed) {
@@ -50,18 +50,23 @@ function chiSquare(counts, expected) {
 }
 
 /**
- * Upper-tail chi-square critical values at p = 0.001, keyed by degrees of
- * freedom. A correct generator exceeds these once in a thousand runs, which
- * keeps these statistical tests effectively non-flaky.
+ * Upper-tail chi-square critical values at p = 1e-6, keyed by degrees of
+ * freedom.
+ *
+ * The threshold trades false alarms against detection power, and the suite runs
+ * six of these assertions on three Node versions per CI run. At the textbook
+ * p = 0.001 that is ~1.8% of runs failing on correct code — which is how this
+ * table got tightened. At p = 1e-6 it is under one run in fifty thousand, while
+ * a genuine defect still lands far above the bar: dropping the rejection
+ * sampling, for instance, scores chi-square ~625 against the df=35 value below.
  */
-var CHI2_001 = {
-  1: 10.828,
-  3: 16.266,
-  4: 18.467,
-  9: 27.877,
-  25: 52.620,
-  35: 66.619,
-  61: 99.607
+var CHI2_CRITICAL = {
+  1: 23.928,
+  3: 30.665,
+  4: 33.377,
+  9: 44.811,
+  25: 73.895,
+  35: 89.947
 };
 
 function countBy(items) {
@@ -83,7 +88,7 @@ module.exports = {
   oddBlockOf: oddBlockOf,
   scriptedRng: scriptedRng,
   chiSquare: chiSquare,
-  CHI2_001: CHI2_001,
+  CHI2_CRITICAL: CHI2_CRITICAL,
   countBy: countBy
 };
 
