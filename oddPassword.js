@@ -3,7 +3,9 @@
  * Generates passwords shaped like:  [AAA1-BBB2-333C-4d-5F5F]
  *
  * Structure:
- *   - N blocks (default 4, minimum 3) of random UPPERCASE letters and digits
+ *   - N blocks (default 4, minimum 3) of random UPPERCASE letters and digits,
+ *     guaranteed to contain at least one letter and at least one digit between
+ *     them (any single block may still be all letters or all digits)
  *   - exactly 1 "odd block" of one lowercase letter + one digit ("4d" or "d4")
  *   - all blocks joined with hyphens
  *   - the whole thing wrapped in one matched bracket pair: [] {} <> ()
@@ -44,6 +46,13 @@
   var BRACKET_NAMES = ['square', 'curly', 'angle', 'round'];
 
   var MIN_BLOCKS = 3;
+
+  // A run of uppercase blocks can legitimately come out all letters — at the
+  // defaults that is (26/36)^16, about 1 in 180, and far likelier for short
+  // blocks. Consumers that require a digit and a capital would break on those,
+  // so they are rejected and redrawn. Only an rng with no usable spread can
+  // exhaust this many attempts.
+  var MAX_CLASS_ATTEMPTS = 1000;
 
   var DEFAULTS = {
     blocks: 4,          // number of UPPER+digit blocks (minimum 3)
@@ -206,6 +215,16 @@
     return rand(2) === 0 ? letter + digit : digit + letter;
   }
 
+  /**
+   * True when the uppercase blocks, taken together, hold at least one letter
+   * and at least one digit. Individual blocks are unconstrained: "DDDD" and
+   * "5555" are both fine as long as something else supplies the other class.
+   */
+  function hasBothClasses(blocks) {
+    var joined = blocks.join('');
+    return /[A-Z]/.test(joined) && /[0-9]/.test(joined);
+  }
+
   /* ------------------------------------------------------------------ *
    * Public API
    * ------------------------------------------------------------------ */
@@ -222,10 +241,26 @@
     var pair = resolveBrackets(opts.brackets, rand);
     var oddIndex = resolveOddPosition(opts.oddBlockPosition, opts.blocks + 1, rand);
 
-    var parts = [];
-    for (var i = 0; i < opts.blocks; i++) {
-      parts.push(makeUpperBlock(opts.blockLength, rand));
+    // Redraw the whole run rather than patching a character into it: rejection
+    // keeps the result uniform over the passwords that satisfy the rule.
+    var parts;
+    var attempts = 0;
+    do {
+      parts = [];
+      for (var i = 0; i < opts.blocks; i++) {
+        parts.push(makeUpperBlock(opts.blockLength, rand));
+      }
+      attempts++;
+    } while (!hasBothClasses(parts) && attempts < MAX_CLASS_ATTEMPTS);
+
+    if (!hasBothClasses(parts)) {
+      throw new Error(
+        'oddPassword: gave up after ' + MAX_CLASS_ATTEMPTS + ' attempts to draw ' +
+        'uppercase blocks containing both a letter and a digit. Check that ' +
+        'options.rng returns a usable spread of values.'
+      );
     }
+
     parts.splice(oddIndex, 0, makeOddBlock(rand));
 
     return pair[0] + parts.join(opts.separator) + pair[1];
@@ -322,6 +357,13 @@
       }
     }
 
+    if (!hasBothClasses(upperBlocks)) {
+      return {
+        valid: false,
+        reason: 'Uppercase blocks need at least one letter and one digit between them.'
+      };
+    }
+
     return {
       valid: true,
       brackets: open + close,
@@ -343,7 +385,12 @@
     if (opts.oddBlockPosition === 'random') bits += Math.log2(opts.blocks + 1);
     bits += 1; // letter-digit vs digit-letter
     bits += Math.log2(LOWER.length) + Math.log2(DIGITS.length);
-    bits += opts.blocks * opts.blockLength * Math.log2(UPPER_ALNUM.length);
+    // The uppercase run is uniform over the 36^n strings minus those with no
+    // digit (26^n) and those with no letter (10^n). Computed in log space so
+    // large block counts do not overflow.
+    var n = opts.blocks * opts.blockLength;
+    bits += n * Math.log2(UPPER_ALNUM.length) +
+      Math.log2(1 - Math.pow(26 / 36, n) - Math.pow(10 / 36, n));
     return bits;
   }
 

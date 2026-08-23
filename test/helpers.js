@@ -130,3 +130,25 @@ function scriptedCrypto(bytes) {
 module.exports.SOURCE = SOURCE;
 module.exports.loadInContext = loadInContext;
 module.exports.scriptedCrypto = scriptedCrypto;
+
+/**
+ * Like scriptedRng, but cycles through `values` forever instead of sticking on
+ * the last one — a stand-in rng that keeps a usable spread, which the
+ * letter-and-digit rule requires.
+ */
+function cyclingRng(values) {
+  var i = 0;
+  return function (max) {
+    return values[i++ % values.length] % max;
+  };
+}
+
+/** The uppercase blocks of a password, i.e. everything but the odd block. */
+function upperBlocksOf(password, separator) {
+  var blocks = parse(password, separator).blocks;
+  var odd = oddBlockOf(blocks);
+  return blocks.filter(function (b) { return b !== odd; });
+}
+
+module.exports.cyclingRng = cyclingRng;
+module.exports.upperBlocksOf = upperBlocksOf;
