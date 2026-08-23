@@ -1,0 +1,23 @@
+{
+  "name": "odd-password-algorithm",
+  "version": "1.0.0",
+  "description": "Generates bracket-wrapped, hyphen-aligned passwords like [AAA1-BBB2-333C-4d-5F5F].",
+  "main": "oddPassword.js",
+  "browser": "oddPassword.js",
+  "files": [
+    "oddPassword.js",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:browser": "node --test test/browser.test.js"
+  },
+  "keywords": [
+    "password",
+    "generator",
+    "random",
+    "crypto"
+  ],
+  "license": "MIT",
+  "sideEffects": false
+}
