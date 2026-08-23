@@ -112,7 +112,9 @@
    * ------------------------------------------------------------------ */
 
   function resolveBrackets(value, rand) {
-    if (value == null || value === 'random') {
+    // `value` has already been through normalizeOptions, so an absent option is
+    // the default rather than null/undefined: anything unrecognised is an error.
+    if (value === 'random') {
       return BRACKETS[BRACKET_NAMES[rand(BRACKET_NAMES.length)]];
     }
     if (typeof value !== 'string') {
@@ -130,7 +132,7 @@
 
   function resolveOddPosition(value, slots, rand) {
     // `slots` is blocks + 1: the odd block can land before, between, or after.
-    if (value == null || value === 'random') return rand(slots);
+    if (value === 'random') return rand(slots);
     if (value === 'first') return 0;
     if (value === 'last') return slots - 1;
     if (typeof value !== 'number' || !isFinite(value) || Math.floor(value) !== value) {

@@ -84,12 +84,27 @@ module throws rather than falling back to something weaker; supply your own
 ## Tests
 
 ```
-node test.js
+npm test          # Node suites — no dependencies, uses the built-in test runner
+npm run test:browser
 ```
 
-Covers shape, every option, rejected inputs, validator failure modes, and a
-20,000-sample distribution check on characters, bracket sets and odd-block
-position.
+125 tests across five suites:
+
+| Suite | Covers |
+| --- | --- |
+| `test/spec.test.js` | The required shape: matched brackets, block counts and charsets, exactly one odd block, both odd-block orders, collision-freedom. |
+| `test/options.test.js` | Every option and every value that must be rejected, including error types and messages. |
+| `test/validate.test.js` | `validate()` acceptance, each rejection reason, option-tightened checks, and single-character mutation of a known-good password. |
+| `test/random.test.js` | Chi-square uniformity (p = 0.001) over characters, bracket sets, odd-block slot and order; no `Math.random`; the no-CSPRNG failure path; and that rejection sampling really discards out-of-range bytes. |
+| `test/module.test.js` | Public API surface, all three UMD load paths (CommonJS, AMD, `<script>` global), packaging, and the entropy arithmetic. |
+
+`test/browser.test.js` additionally drives real Chromium against `test.html`
+— the `<script>` tag path, the browser CSPRNG, the UI, and its 5,000-password
+stress run. It is **skipped unless Playwright is available**: either
+`npm i -D playwright`, or point `ODDPW_PLAYWRIGHT_PATH` at a global install.
+
+CI (`.github/workflows/test.yml`) runs the Node suites on Node 20, 22 and 24,
+plus a Chromium job for the browser suite.
 
 ## Test page
 
