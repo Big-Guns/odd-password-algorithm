@@ -12,12 +12,23 @@
     "test": "node --test test/*.test.js",
     "test:browser": "node --test test/browser.test.js"
   },
+  "devDependencies": {
+    "playwright": "^1.55.0"
+  },
   "keywords": [
     "password",
     "generator",
     "random",
     "crypto"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Big-Guns/odd-password-algorithm.git"
+  },
+  "homepage": "https://github.com/Big-Guns/odd-password-algorithm",
+  "bugs": {
+    "url": "https://github.com/Big-Guns/odd-password-algorithm/issues"
+  },
   "license": "MIT",
   "sideEffects": false
 }

@@ -40,8 +40,8 @@ import oddPassword from 'odd-password-algorithm';
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `blocks` | `4` | Number of uppercase/digit blocks. Minimum 3; throws below that. |
-| `blockLength` | `4` | Characters per uppercase/digit block. |
+| `blocks` | `4` | Number of uppercase/digit blocks. Minimum 3, maximum 64; throws outside that range. |
+| `blockLength` | `4` | Characters per uppercase/digit block. Minimum 1, maximum 64. |
 | `brackets` | `'random'` | `'random'`, or one of `'[]' '{}' '<>' '()'` (also named: `'square'`, `'curly'`, `'angle'`, `'round'`). |
 | `oddBlockPosition` | `'random'` | `'random'`, `'first'`, `'last'`, or an integer index in `0 .. blocks`. |
 | `separator` | `'-'` | String between blocks. |
@@ -65,7 +65,15 @@ oddPassword.validate('[AAA1-BBB2-333C-4d>');
 ```
 
 Passing `options` tightens the check — e.g. `{ brackets: '{}' }` requires curly
-braces. Omitted options accept anything the spec allows.
+braces, while `{ blocks: 5 }`, `{ blockLength: 6 }`, and
+`{ oddBlockPosition: 'last' }` require the password to match those exact
+constraints. `validate()` accepts `'random'` as a wildcard for these relevant
+options, so `{ blocks: 'random' }` and `{ oddBlockPosition: 'random' }` do not
+pin the candidate to one specific value. Omitted options accept anything the spec
+allows.
+
+The validator also enforces the same upper limits used by generation: `blocks`
+must stay between 3 and 64, and `blockLength` must stay between 1 and 64.
 
 ### `entropyBits(options?) → number`
 
@@ -73,7 +81,8 @@ Bits of entropy for the given shape, counting every random choice made
 (bracket set, odd-block slot, odd-block order, and each character).
 Defaults come out at **~96 bits**.
 
-Also exported: `defaults`, `MIN_BLOCKS`, `BRACKETS`.
+Also exported: `defaults`, `MIN_BLOCKS`, `BRACKETS`. These exported objects are
+frozen so consumer mutation cannot alter the library’s built-in configuration.
 
 ## The letter-and-digit rule
 

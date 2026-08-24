@@ -28,12 +28,12 @@
   var LOWER = 'abcdefghijklmnopqrstuvwxyz';
   var DIGITS = '0123456789';
 
-  var BRACKETS = {
+  var BRACKETS = deepFreeze({
     square: ['[', ']'],
     curly: ['{', '}'],
     angle: ['<', '>'],
     round: ['(', ')']
-  };
+  });
 
   // Aliases so callers can pass the pair itself: brackets: '{}'
   var BRACKET_ALIASES = {
@@ -46,6 +46,19 @@
   var BRACKET_NAMES = ['square', 'curly', 'angle', 'round'];
 
   var MIN_BLOCKS = 3;
+  var MAX_BLOCKS = 64;
+  var MAX_BLOCK_LENGTH = 64;
+
+  function deepFreeze(value) {
+    if (!value || typeof value !== 'object') return value;
+    Object.getOwnPropertyNames(value).forEach(function (key) {
+      var child = value[key];
+      if (child && typeof child === 'object' && !Object.isFrozen(child)) {
+        deepFreeze(child);
+      }
+    });
+    return Object.freeze(value);
+  }
 
   // A run of uppercase blocks can legitimately come out all letters — at the
   // defaults that is (26/36)^16, about 1 in 180, and far likelier for short
@@ -54,14 +67,14 @@
   // exhaust this many attempts.
   var MAX_CLASS_ATTEMPTS = 1000;
 
-  var DEFAULTS = {
+  var DEFAULTS = deepFreeze({
     blocks: 4,          // number of UPPER+digit blocks (minimum 3)
     blockLength: 4,     // characters per UPPER+digit block
     brackets: 'random', // 'random' | 'square' | 'curly' | 'angle' | 'round' | '[]' | '{}' | '<>' | '()'
     oddBlockPosition: 'random', // 'random' | 'first' | 'last' | integer index
     separator: '-',
     rng: null           // optional (max) => int in [0, max); defaults to CSPRNG
-  };
+  });
 
   /* ------------------------------------------------------------------ *
    * Randomness
@@ -158,7 +171,7 @@
     return value;
   }
 
-  function normalizeOptions(options) {
+  function normalizeOptions(options, allowRandom) {
     var o = options || {};
     var opts = {};
     var key;
@@ -170,20 +183,34 @@
       }
     }
 
-    if (typeof opts.blocks !== 'number' || !isFinite(opts.blocks) ||
-        Math.floor(opts.blocks) !== opts.blocks) {
-      throw new TypeError('oddPassword: options.blocks must be an integer.');
-    }
-    if (opts.blocks < MIN_BLOCKS) {
-      throw new RangeError('oddPassword: options.blocks must be at least ' + MIN_BLOCKS + '.');
+    if (opts.blocks !== 'random') {
+      if (typeof opts.blocks !== 'number' || !isFinite(opts.blocks) ||
+          Math.floor(opts.blocks) !== opts.blocks) {
+        throw new TypeError('oddPassword: options.blocks must be an integer.');
+      }
+      if (opts.blocks < MIN_BLOCKS) {
+        throw new RangeError('oddPassword: options.blocks must be at least ' + MIN_BLOCKS + '.');
+      }
+      if (opts.blocks > MAX_BLOCKS) {
+        throw new RangeError('oddPassword: options.blocks must be at most ' + MAX_BLOCKS + '.');
+      }
+    } else if (!allowRandom) {
+      throw new RangeError('oddPassword: options.blocks must be an integer, not "random".');
     }
 
-    if (typeof opts.blockLength !== 'number' || !isFinite(opts.blockLength) ||
-        Math.floor(opts.blockLength) !== opts.blockLength) {
-      throw new TypeError('oddPassword: options.blockLength must be an integer.');
-    }
-    if (opts.blockLength < 1) {
-      throw new RangeError('oddPassword: options.blockLength must be at least 1.');
+    if (opts.blockLength !== 'random') {
+      if (typeof opts.blockLength !== 'number' || !isFinite(opts.blockLength) ||
+          Math.floor(opts.blockLength) !== opts.blockLength) {
+        throw new TypeError('oddPassword: options.blockLength must be an integer.');
+      }
+      if (opts.blockLength < 1) {
+        throw new RangeError('oddPassword: options.blockLength must be at least 1.');
+      }
+      if (opts.blockLength > MAX_BLOCK_LENGTH) {
+        throw new RangeError('oddPassword: options.blockLength must be at most ' + MAX_BLOCK_LENGTH + '.');
+      }
+    } else if (!allowRandom) {
+      throw new RangeError('oddPassword: options.blockLength must be an integer, not "random".');
     }
 
     if (typeof opts.separator !== 'string' || opts.separator.length === 0) {
@@ -286,9 +313,10 @@
    *            blocks?: number, blockLength?: number, oddBlockIndex?: number}}
    */
   function validate(password, options) {
+    var supplied = options && typeof options === 'object' ? options : {};
     var opts;
     try {
-      opts = normalizeOptions(options);
+      opts = normalizeOptions(options, true);
     } catch (e) {
       return { valid: false, reason: e.message };
     }
@@ -351,9 +379,30 @@
         reason: 'Only ' + upperBlocks.length + ' uppercase blocks; minimum is ' + MIN_BLOCKS + '.'
       };
     }
+    if (Object.prototype.hasOwnProperty.call(supplied, 'blocks') && supplied.blocks !== undefined &&
+        opts.blocks !== 'random' && upperBlocks.length !== opts.blocks) {
+      return { valid: false, reason: 'Expected ' + opts.blocks + ' blocks.' };
+    }
     for (var m = 0; m < upperBlocks.length; m++) {
       if (upperBlocks[m].length !== upperBlocks[0].length) {
         return { valid: false, reason: 'Uppercase blocks have inconsistent lengths.' };
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(supplied, 'blockLength') && supplied.blockLength !== undefined &&
+        opts.blockLength !== 'random' && upperBlocks[0].length !== opts.blockLength) {
+      return { valid: false, reason: 'Expected block length ' + opts.blockLength + '.' };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(supplied, 'oddBlockPosition') && supplied.oddBlockPosition !== undefined &&
+        opts.oddBlockPosition !== 'random') {
+      var slots = upperBlocks.length + 1;
+      try {
+        var expectedOddIndex = resolveOddPosition(opts.oddBlockPosition, slots, function () { return 0; });
+      } catch (e) {
+        return { valid: false, reason: e.message };
+      }
+      if (oddIndex !== expectedOddIndex) {
+        return { valid: false, reason: 'Expected odd block at index ' + expectedOddIndex + '.' };
       }
     }
 
