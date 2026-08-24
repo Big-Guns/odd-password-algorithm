@@ -21,6 +21,14 @@
     "random",
     "crypto"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Big-Guns/odd-password-algorithm.git"
+  },
+  "homepage": "https://github.com/Big-Guns/odd-password-algorithm",
+  "bugs": {
+    "url": "https://github.com/Big-Guns/odd-password-algorithm/issues"
+  },
   "license": "MIT",
   "sideEffects": false
 }
