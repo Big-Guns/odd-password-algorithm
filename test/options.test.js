@@ -32,6 +32,18 @@ describe('blocks', function () {
     });
   });
 
+  it('accepts the maximum supported block count', function () {
+    var n = 64;
+    var pw = oddPassword.generate({ blocks: n });
+    assert.ok(oddPassword.validate(pw, { blocks: n }).valid, pw);
+  });
+
+  it('rejects block counts above the maximum', function () {
+    [65, 128, 1000].forEach(function (n) {
+      assert.throws(function () { oddPassword.generate({ blocks: n }); }, RangeError, 'blocks: ' + n);
+    });
+  });
+
   it('rejects fewer than 3 blocks', function () {
     [2, 1, 0, -1].forEach(function (n) {
       assert.throws(
@@ -68,6 +80,18 @@ describe('blockLength', function () {
       var result = oddPassword.validate(pw, { blockLength: len });
       assert.ok(result.valid, pw + ' -> ' + result.reason);
       assert.strictEqual(result.blockLength, len, pw);
+    });
+  });
+
+  it('accepts the maximum supported block length', function () {
+    var len = 64;
+    var pw = oddPassword.generate({ blockLength: len });
+    assert.ok(oddPassword.validate(pw, { blockLength: len }).valid, pw);
+  });
+
+  it('rejects block lengths above the maximum', function () {
+    [65, 128, 1000].forEach(function (len) {
+      assert.throws(function () { oddPassword.generate({ blockLength: len }); }, RangeError, 'len: ' + len);
     });
   });
 
@@ -275,8 +299,17 @@ describe('option handling in general', function () {
 
   it('does not let callers mutate shared state through defaults', function () {
     var before = oddPassword.defaults.blocks;
+    try { oddPassword.defaults.blocks = 7; } catch (e) {}
+    assert.strictEqual(oddPassword.defaults.blocks, before);
     oddPassword.generate({ blocks: 7 });
     assert.strictEqual(oddPassword.defaults.blocks, before);
+  });
+
+  it('does not let callers mutate the exported bracket configuration', function () {
+    var before = oddPassword.BRACKETS.square.slice();
+    try { oddPassword.BRACKETS.square[0] = 'X'; } catch (e) {}
+    assert.deepStrictEqual(oddPassword.BRACKETS.square, before);
+    assert.strictEqual(oddPassword.generate({ brackets: 'square' }).charAt(0), '[');
   });
 
   it('ignores unknown options', function () {

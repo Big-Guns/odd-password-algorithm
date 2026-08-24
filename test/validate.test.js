@@ -171,6 +171,27 @@ describe('validating against specific options', function () {
     });
   });
 
+  it('enforces a required block count', function () {
+    var pw = '[AAA1-BBB2-333C-4d-5F5F]';
+    assert.ok(oddPassword.validate(pw, { blocks: 4 }).valid, pw);
+    assert.match(reasonFor(pw, { blocks: 5 }), /Expected 5 blocks/);
+    assert.ok(oddPassword.validate(pw, { blocks: 'random' }).valid, pw);
+  });
+
+  it('enforces a required block length', function () {
+    var pw = '[AAA1-BBB2-333C-4d-5F5F]';
+    assert.ok(oddPassword.validate(pw, { blockLength: 4 }).valid, pw);
+    assert.match(reasonFor(pw, { blockLength: 5 }), /Expected block length 5/);
+    assert.ok(oddPassword.validate(pw, { blockLength: 'random' }).valid, pw);
+  });
+
+  it('enforces the odd block position', function () {
+    var pw = '[AAA1-BBB2-333C-5F5F-4d]';
+    assert.ok(oddPassword.validate(pw, { oddBlockPosition: 'last' }).valid, pw);
+    assert.match(reasonFor(pw, { oddBlockPosition: 'first' }), /Expected odd block at index 0/);
+    assert.ok(oddPassword.validate(pw, { oddBlockPosition: 'random' }).valid, pw);
+  });
+
   it('honours a custom separator', function () {
     assert.ok(oddPassword.validate('[AAA1_BBB2_333C_4d_5F5F]', { separator: '_' }).valid);
     assert.strictEqual(oddPassword.validate('[AAA1_BBB2_333C_4d_5F5F]').valid, false);

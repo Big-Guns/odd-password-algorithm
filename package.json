@@ -12,6 +12,9 @@
     "test": "node --test test/*.test.js",
     "test:browser": "node --test test/browser.test.js"
   },
+  "devDependencies": {
+    "playwright": "^1.55.0"
+  },
   "keywords": [
     "password",
     "generator",
