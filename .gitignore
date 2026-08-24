@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Windows shell / editor leftovers
+*.lnk
+
+# Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local environment / temporary files
+.env
+.env.*
+.tmp/
+tmp/
+
+# Test / coverage output if added later
+coverage/
