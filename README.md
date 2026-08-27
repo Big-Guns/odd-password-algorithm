@@ -17,6 +17,12 @@ Generates passwords with a deliberately odd, fixed shape:
 
 Vanilla JS, no dependencies, UMD (`<script>` tag, CommonJS or AMD).
 
+## Install
+
+```bash
+npm install odd-password-algorithm
+```
+
 ## Usage
 
 ```html
@@ -125,7 +131,7 @@ npm test          # Node suites — no dependencies, uses the built-in test runn
 npm run test:browser
 ```
 
-128 tests across five suites (136 with the browser suite):
+136 tests across five suites plus the browser validation suite:
 
 | Suite | Covers |
 | --- | --- |
@@ -139,7 +145,8 @@ npm run test:browser
 `test/browser.test.js` additionally drives real Chromium against `test.html`
 — the `<script>` tag path, the browser CSPRNG, the UI, and its 5,000-password
 stress run. It is **skipped unless Playwright is available**: either
-`npm i -D playwright`, or point `ODDPW_PLAYWRIGHT_PATH` at a global install.
+`npm install --save-dev playwright`, or point `ODDPW_PLAYWRIGHT_PATH` at a
+global install.
 
 CI (`.github/workflows/test.yml`) runs the Node suites on Node 20, 22 and 24,
 plus a Chromium job for the browser suite.
