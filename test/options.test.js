@@ -224,6 +224,33 @@ describe('separator', function () {
     assert.ok(result.valid, result.reason);
   });
 
+  it('round-trips across the valid option sweep', function () {
+    var bracketSets = ['[]', '{}', '<>', '()'];
+    var separators = ['-', '::', '_', '--'];
+    for (var blocks = 3; blocks <= 8; blocks++) {
+      var positions = ['random', 'first', 'last'];
+      for (var i = 0; i <= blocks; i++) positions.push(i);
+      for (var blockLength = 1; blockLength <= 8; blockLength++) {
+        for (var b = 0; b < bracketSets.length; b++) {
+          for (var p = 0; p < positions.length; p++) {
+            for (var s = 0; s < separators.length; s++) {
+              var opts = {
+                blocks: blocks,
+                blockLength: blockLength,
+                brackets: bracketSets[b],
+                oddBlockPosition: positions[p],
+                separator: separators[s]
+              };
+              var pw = oddPassword.generate(opts);
+              var result = oddPassword.validate(pw, opts);
+              assert.ok(result.valid, JSON.stringify({ pw: pw, opts: opts, reason: result.reason }));
+            }
+          }
+        }
+      }
+    }
+  });
+
   it('rejects an empty or non-string separator', function () {
     ['', 5, null].forEach(function (bad) {
       assert.throws(function () { oddPassword.generate({ separator: bad }); });

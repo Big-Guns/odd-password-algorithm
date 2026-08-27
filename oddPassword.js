@@ -133,11 +133,26 @@
    * Option handling
    * ------------------------------------------------------------------ */
 
+  function randomInt(rand, max) {
+    if (typeof rand !== 'function') {
+      throw new TypeError('oddPassword: options.rng must be a function (max) => int in [0, max).');
+    }
+    var value = rand(max);
+    if (typeof value !== 'number' || !isFinite(value) || Math.floor(value) !== value ||
+        value < 0 || value >= max) {
+      throw new TypeError(
+        'oddPassword: options.rng must return an integer in [0, max). Received ' + String(value) +
+        ' for max=' + max + '.'
+      );
+    }
+    return value;
+  }
+
   function resolveBrackets(value, rand) {
     // `value` has already been through normalizeOptions, so an absent option is
     // the default rather than null/undefined: anything unrecognised is an error.
     if (value === 'random') {
-      return BRACKETS[BRACKET_NAMES[rand(BRACKET_NAMES.length)]];
+      return BRACKETS[BRACKET_NAMES[randomInt(rand, BRACKET_NAMES.length)]];
     }
     if (typeof value !== 'string') {
       throw new TypeError('oddPassword: options.brackets must be a string.');
@@ -154,7 +169,7 @@
 
   function resolveOddPosition(value, slots, rand) {
     // `slots` is blocks + 1: the odd block can land before, between, or after.
-    if (value === 'random') return rand(slots);
+    if (value === 'random') return randomInt(rand, slots);
     if (value === 'first') return 0;
     if (value === 'last') return slots - 1;
     if (typeof value !== 'number' || !isFinite(value) || Math.floor(value) !== value) {
@@ -172,7 +187,10 @@
   }
 
   function normalizeOptions(options, allowRandom) {
-    var o = options || {};
+    if (Array.isArray(options)) {
+      throw new TypeError('oddPassword: options must be an object, not an array.');
+    }
+    var o = options && typeof options === 'object' ? options : {};
     var opts = {};
     var key;
     for (key in DEFAULTS) {
@@ -216,9 +234,14 @@
     if (typeof opts.separator !== 'string' || opts.separator.length === 0) {
       throw new TypeError('oddPassword: options.separator must be a non-empty string.');
     }
+    if (/[A-Za-z0-9\[\]\{\}\(\)<>]/.test(opts.separator)) {
+      throw new TypeError(
+        'oddPassword: options.separator must not contain letters, digits, or bracket characters.'
+      );
+    }
 
     if (opts.rng != null && typeof opts.rng !== 'function') {
-      throw new TypeError('oddPassword: options.rng must be a function (max) => int.');
+      throw new TypeError('oddPassword: options.rng must be a function (max) => int in [0, max).');
     }
 
     return opts;
@@ -313,7 +336,7 @@
    *            blocks?: number, blockLength?: number, oddBlockIndex?: number}}
    */
   function validate(password, options) {
-    var supplied = options && typeof options === 'object' ? options : {};
+    var supplied = options && typeof options === 'object' && !Array.isArray(options) ? options : {};
     var opts;
     try {
       opts = normalizeOptions(options, true);
@@ -342,7 +365,11 @@
       return { valid: false, reason: 'Mismatched brackets: "' + open + '" ... "' + close + '".' };
     }
     if (opts.brackets !== 'random') {
-      var wanted = resolveBrackets(opts.brackets, function () { return 0; });
+      try {
+        var wanted = resolveBrackets(opts.brackets, function () { return 0; });
+      } catch (e) {
+        return { valid: false, reason: e.message };
+      }
       if (wanted[0] !== open) {
         return { valid: false, reason: 'Expected ' + wanted[0] + wanted[1] + ' brackets.' };
       }
@@ -379,6 +406,9 @@
         reason: 'Only ' + upperBlocks.length + ' uppercase blocks; minimum is ' + MIN_BLOCKS + '.'
       };
     }
+    if (upperBlocks.length > MAX_BLOCKS) {
+      return { valid: false, reason: 'Expected at most ' + MAX_BLOCKS + ' blocks.' };
+    }
     if (Object.prototype.hasOwnProperty.call(supplied, 'blocks') && supplied.blocks !== undefined &&
         opts.blocks !== 'random' && upperBlocks.length !== opts.blocks) {
       return { valid: false, reason: 'Expected ' + opts.blocks + ' blocks.' };
@@ -387,6 +417,9 @@
       if (upperBlocks[m].length !== upperBlocks[0].length) {
         return { valid: false, reason: 'Uppercase blocks have inconsistent lengths.' };
       }
+    }
+    if (upperBlocks[0].length > MAX_BLOCK_LENGTH) {
+      return { valid: false, reason: 'Expected block length at most ' + MAX_BLOCK_LENGTH + '.' };
     }
     if (Object.prototype.hasOwnProperty.call(supplied, 'blockLength') && supplied.blockLength !== undefined &&
         opts.blockLength !== 'random' && upperBlocks[0].length !== opts.blockLength) {
