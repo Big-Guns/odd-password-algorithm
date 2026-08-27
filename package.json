@@ -1,6 +1,6 @@
 {
   "name": "odd-password-algorithm",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Generates bracket-wrapped, hyphen-aligned passwords like [AAA1-BBB2-333C-4d-5F5F].",
   "main": "oddPassword.js",
   "browser": "oddPassword.js",
