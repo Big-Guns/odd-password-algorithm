@@ -111,9 +111,39 @@ TAGS
 # ---------------------------------------------------------------------------
 # AI / agent tooling
 # ---------------------------------------------------------------------------
-.claude/settings.local.json
+# Agent instruction files — personal working notes, not project documentation.
+# Anything a contributor should know belongs in README.md instead.
+AGENTS.md
+AGENT.md
+CLAUDE.md
+CLAUDE.local.md
+GEMINI.md
+QWEN.md
+.rules
+.cursorrules
+.windsurfrules
+.clinerules
+.roorules
+.replit.md
+.github/copilot-instructions.md
+.github/instructions/
+.github/prompts/
+.github/chatmodes/
+
+# Per-tool agent directories
+.claude/
+.cursor/
+.gemini/
+.windsurf/
+.clinerules/
+.roo/
+.junie/
+.continue/
+.codex/
+.idx/
 .aider*
 .cursorignore
+.mcp.json
 
 # ---------------------------------------------------------------------------
 # OS cruft
