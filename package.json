@@ -9,7 +9,8 @@
     "README.md"
   ],
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "npm run test:node",
+    "test:node": "node --test test/module.test.js test/options.test.js test/random.test.js test/spec.test.js test/validate.test.js",
     "test:browser": "node --test test/browser.test.js"
   },
   "devDependencies": {
